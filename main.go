@@ -1,38 +1,163 @@
 package main
 
 import (
+	"flag"
 	"fmt"
-	"io"
 	"log"
-	"net/http"
-	"time"
+	"strconv"
+	"strings"
 
 	"github.com/go-rod/rod"
-	"github.com/go-rod/stealth"
+	"github.com/go-rod/rod/lib/launcher"
+)
+
+type Person struct {
+	Name     string
+	DOB      int
+	Street   string
+	PostCode string
+}
+
+var (
+	nameOne   = flag.String("nameOne", "", "help message for flag n")
+	genderOne = flag.String("genderOne", "", "help message for flag n")
+	nameTwo   = flag.String("nameTwo", "", "help message for flag n")
+	genderTwo = flag.String("genderTwo", "", "help message for flag n")
 )
 
 func main() {
-	// req, err := http.NewRequest(http.MethodGet, url, nil)
-	// if err != nil {
-	// 	log.Fatal(err)
-	// }
-	//
-	// cookie := `ASP.NET_SessionId=pqsu3npmkdc3gp0lrrduudcg; OptanonAlertBoxClosed=2025-12-19T18:44:20.127Z; lwuid=gnlw988a1a0c-812e-44b1-a822-881cf715384d; adksid=4b0d6842-44e9-4ea6-85a1-b448dfcfb095; adkvid=f1d08b81-8976-4ac4-bb78-8fa8aee07247; eupubconsent-v2=CQcrUpgQcrUpgAcABBENCKFsAP_gAAAAAChQJwNR3G__bXlr8TL3afpkeYxf99hr7sQxBgbJk24FzLuW7JwS32EzNAyatqYKmRIAu3RBIQFlGJDURVCgKIgFrTDMYECUgTNKJ6BkgBMRY2JYCFxvmQpjWQCY4vp9dlc5mReN7dr82dzyy4Bnv3a5fmQlUJCdAYctDfn8ZBKT-5IE9-x8v4vw9N7pE2-eSVl_tGvp4B8uYlO7dBExt-QAAAGBIIwAC4AKAAqABwADwAIIAXgBqADwAJgAVQA3gB-AEJAIYAiQBHACaAGAAMOAZQBlgDZAHPAO4A74B7AHxAPsA_QCAAEUgIuAjABGoCRAJLAT8BQYCoAKuAXMAvQBigDRAG0ANwAcSBHoEigJ2AUOAo8BSIC2AFyALvAXmAw2BkYGSAMnAZmAzmBq4GsgNvAbqA5MBy4DxwIJgQYAhDBC0ELoIegh-BH0CRUEmASZAlmBLeCXwJgATOAm4EARgAOABIAJwAg4BHACaAE7AL6AlYBMoCbQFIQKfAqEBYQCxAFuALyAYgAxYBkIDRgGpgNoAbcA3SB8gHygQEAgYBBECFYEPAIpgSNAlSBM0dBTAAXABQAFQAOAAggBcAGoAPAAmABVgC4ALoAbwA_QCGAIkATQAowBgADDAGUANEAbIA54B3AHeAPaAfYB-wEUARiAjoCSwE_AUGAqICrgFiALnAXkBegDFAG0ANwAcQA-wCL4EegSKAmQBOwCh4FHgUgAqwBYoC2AFugLgAXIAu0Bd4C8wF9AMNAY9AyMDJIGTgZUAywBmYDOQGmgNVgauBrADbwG6gOLAcmA5cB44D6wH3AP7AgCBBgCFoEPQI7AR9AkUBJkCWYEuoJfAmABM4Cbg4CBAA4ADwALgAkAB-AFAANAAjgByAEAgIOAhABEQCOAE0AJ2AVAA6QCVgExAJlATaApMBUICpQFVAK7AWIAtQBbgC6AGIAMWAZCAyYBowDUwGvANoAbYA24BugDjwHLQOdA58B8QD5QH2gP2AgIBAwCB4EEQINgQrAh4BFMCN4EhIJGgkkBKkCXEEwQTDAmaBNgCbZCBGAAsACgALgAagBVAC4AG8AYAA54B3AHeARQAlIBQYCogKuAXMAxQBtAEegKsAWKAtEBcAC5AGRgMnAZyA1UB44D-wIMAQtAh6BIoCXQEziACAAB4AaAByAEcALEAX0BNoCkwFiALyAZ4A0YBqYDbAG3AN0AcsA58B8QD9gICAQPAg2BCsCGYEUwI3wSRBJICYYEzQJsATbJQJwAFgAUAA4ADwAJgAVQAuQCGAIkARwAowBgADZAHeAPyAqICrgFzAMUAi-BHoEigKPAU0AsUBbAC84GRgZIAycBnIDWAG3gQBAgeBBgCEIEPQJFAS6Al8BM4CbhIAsABcAdwBAACDgEcAKgAlYBMQCbQFJgLcAYsAywBngDdAHLAQEAgiBDMCSQEzQJtlAGAACgALgAkABcAI4ATgA5AB3AD7AIAAQcAsQBdQDXgHbAP-AmIBNoCn4FSAVKArsBbgC6AF5AMWAZMAzwBowDUwGvAN0AcsA-IB8oD7QH7AQEAgYBA8CDYEKwIeARTgkaCSQEqQJmgTYAm2UgjAALgAoACoAHAAQQAyADQAHgATAAqgB-gEMARIAowBgADKAGiANkAc4A74B-AH6ARYAjEBHQElAKDAVEBVwC5gF5AMUAbQA3AB7QD7AIvgR6BIoCdgFDgKQAU0AqwBYoC2AFwALkAXaAvMBfQDDYGRgZIAycBlgDOYGsAayA28BuoDkwHigPHAf2BBMCDAEIQIWgQzAhyBHYCPoEioJMAkyBLMCXUEvgTAAmcWgFgA1AGAAO4AvQB9gFNAKsAZmA8cCHoE3CwAwAZYBHAEegJiATaA0YBqYDdAHLAQEAmaBNgAAA.f_wAAAAAAAAA; username=adrianforsius@gmail.com; .ASPXAUTH=1E5C76F440249BF6006E896CF50348E305B9453C08ADB995EE831AA97C1D6EC72C61BB8B27D74A6DB9876F3064DD19B51715FF73D4A595D799BC05941A410C54650D115F31146D3B41B263FCC8690B7993567504B5A15C02D40A3F31981D1CCCE83FDA2D34EDE869249BB549383BFA8BAAC7F2B4C3234E2307917194F9E1D4420571394C2AB55727920F9680296C4F3FD5E83287D0AA5564FE903246333A6EB7578AFB740060B793ABEE179899C7A6F6D7BF958B056E5E54C1F605004D7E6DD9D88B5DD697D6FB0A4BAD498023C56969E29F41535EAE637A64C15D517B58651D5ED05C313E6953E64027A4B515EDB31E2968D862A9DF47AF54CE0E1704C2C798B740740003B317DB02115DA076739232; __browsiSessionID=02e5c0cb-cfab-4e0b-b252-6958406ca4cf&false&DEFAULT&se&desktop-4.53.1268; __browsiUID=44667045-59ab-4fcb-9ac4-c4a1d58c0a45; __gads=ID=710098a281eb7bf3:T=1766170199:RT=1766170199:S=ALNI_MZkZhMGxs8lssRCAWn0TahRRf8rSg; __gpi=UID=000012b25173a013:T=1766170199:RT=1766170199:S=ALNI_MYtxR7EeyDXCwqTguqIPwEY3g6IKg; __eoi=ID=02dd758fc70c1c06:T=1766170199:RT=1766170199:S=AA-AfjYDz6xi6-mViabfZ_cuJCbL; OptanonConsent=isGpcEnabled=0&datestamp=Fri+Dec+19+2025+19%3A51%3A00+GMT%2B0100+(Central+European+Standard+Time)&version=202311.1.0&browserGpcFlag=0&isIABGlobal=false&hosts=&landingPath=NotLandingPage&groups=C0004%3A1%2CC0001%3A1%2CV2STACK42%3A1&AwaitingReconsent=false&geolocation=%3B`
+	flag.Parse()
 
-	// req.Header.Set("Cookie", cookie)
-	// client := &http.Client{Timeout: time.Second * 5}
-	// resp, err := client.Do(req)
-	// if err != nil {
-	// 	log.Fatal(err)
-	// }
-	// defer resp.Body.Close()
-	//
-	// // Read and print the response to see the cookies we sent
-	// body, err := io.ReadAll(resp.Body)
-	// if err != nil {
-	// 	log.Fatal(err)
-	// }
-	//
-	// fmt.Println(string(body))
-	url := "https://www.upplysning.se/person/?x=0791&f=christina&c=vaxholm&ac=0187&county=01&municipality=0187&malegender=False&femalegender=True&m=0&sl=detail&page=2"
+	male1 := "False"
+	female1 := "True"
+	if *genderOne == "m" {
+		male1 = "True"
+		female1 = "False"
+	}
+
+	male2 := "False"
+	female2 := "True"
+	if *genderTwo == "m" {
+		male2 = "True"
+		female2 = "False"
+	}
+
+	url := "https://www.upplysning.se/person/?f=%s&c=vaxholm&county=01&municipality=0187&malegender=%s&femalegender=%s&m=0&sl=detail"
+	url1 := fmt.Sprintf(url, *nameOne, male1, female1)
+	url2 := fmt.Sprintf(url, *nameTwo, male2, female2)
+	// url1 := "https://omni.se"
+	// url2 := "https://omni.se"
+	// _ = male1
+	// _ = male2
+	// _ = female1
+	// _ = female2
+
+	// url := "https://www.wikipedia.org/"
+	launcher := launcher.New().Bin("google-chrome-stable").Headless(false).MustLaunch()
+
+	browser := rod.New().ControlURL(launcher).MustConnect()
+	defer browser.Close()
+
+	page := browser.MustPage(url1)
+
+	el, err := page.Element("[href='/logga-in']")
+	if err != nil {
+		log.Fatal(err)
+	}
+	el.MustClick()
+	page.MustWaitIdle()
+	accept, err := page.Element("#onetrust-accept-btn-handler")
+	if err != nil {
+		log.Fatal(err)
+	}
+	accept.MustClick()
+
+	user, err := page.Element("[placeholder='E-postadress']")
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	password, err := page.Element("[placeholder='Lösenord']")
+	if err != nil {
+		log.Fatal(err)
+	}
+	user.Input("adrianforsius@gmail.com")
+	password.Input("Dx!meD9Twnw96fx")
+
+	login, err := page.Element("[value='Logga in']")
+	if err != nil {
+		log.Fatal(err)
+	}
+	login.MustClick()
+	page.MustElement("[href='/min-sida/']").MustWaitVisible()
+
+	page = page.MustNavigate(url1)
+	page.MustWaitIdle()
+	page.MustElement(".search-button").MustClick()
+
+	search1 := scrape(page)
+	page = page.MustNavigate(url2)
+	page.MustElement(".search-button").MustClick()
+
+	page.MustWaitIdle()
+	search2 := scrape(page)
+	for _, one := range search1 {
+		for _, two := range search2 {
+			if one.Street == two.Street {
+				fmt.Println(one, " ", two)
+			}
+		}
+	}
+}
+
+func scrape(page *rod.Page) []Person {
+	var persons []Person
+
+	for {
+		searchResult, err := page.Elements(".search-result-item")
+		if err != nil {
+			log.Fatal(err)
+		}
+		for _, s := range searchResult {
+			// el = s.MustElement("div")
+			el := s.MustElement("img")
+			attr, err := el.Attribute("alt")
+			if err != nil {
+				log.Println(err)
+			}
+
+			txt := s.MustText()
+
+			// fmt.Println(txt)
+			parts := strings.Split(txt, "\n")
+
+			dob := 0
+			if attr != nil {
+				ageParts := strings.Split(*attr, "-")
+				dob, err = strconv.Atoi(ageParts[0])
+				if err != nil {
+					log.Println(err)
+				}
+			}
+
+			persons = append(persons, Person{
+				Name:   strings.TrimSpace(parts[0]),
+				DOB:    dob,
+				Street: strings.TrimSpace(parts[1]),
+			})
+		}
+
+		page.MustWaitIdle()
+		if !page.MustHas("[rel='next']") {
+			break
+		}
+
+		el, err := page.Element("[rel='next']")
+		if err != nil {
+			break
+		}
+		// fmt.Println(persons)
+		el.MustClick()
+	}
+	return persons
 }
